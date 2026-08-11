@@ -5,6 +5,7 @@ from moveit_msgs.msg import MotionPlanRequest, WorkspaceParameters, Constraints,
 from shape_msgs.msg import SolidPrimitive
 from geometry_msgs.msg import PoseStamped, Point
 import math
+import asyncio
 
 class MoveItManager:
     def __init__(self, node, config):
@@ -63,7 +64,7 @@ class MoveItManager:
         
         # Wait for goal to be accepted
         while not send_goal_future.done():
-            await rclpy.task.asyncio.sleep(0.1)
+            await asyncio.sleep(0.1)
             
         goal_handle = send_goal_future.result()
         if not goal_handle.accepted:
@@ -72,7 +73,7 @@ class MoveItManager:
         # Wait for result
         result_future = goal_handle.get_result_async()
         while not result_future.done():
-            await rclpy.task.asyncio.sleep(0.1)
+            await asyncio.sleep(0.1)
             
         result = result_future.result().result
         error_code = result.error_code.val
