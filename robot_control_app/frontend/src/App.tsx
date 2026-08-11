@@ -40,6 +40,17 @@ const App = () => {
     };
   }, []);
 
+  const handleEstop = async () => {
+    try {
+      await fetch(`http://${window.location.hostname}:8000/api/motion/estop`, {
+        method: "POST"
+      });
+      // Optionally show a notification
+    } catch (e) {
+      console.error("ESTOP Failed:", e);
+    }
+  };
+
   return (
     <div className="flex flex-col h-full bg-gray-900 text-white">
       {/* Top Bar */}
@@ -50,7 +61,12 @@ const App = () => {
             <div className={`w-3 h-3 rounded-full ${robotStatus === 'CONNECTED' ? 'bg-green-500' : 'bg-red-500'}`}></div>
             <span className="text-sm font-medium">{robotStatus}</span>
           </div>
-          <button className="px-4 py-1.5 bg-red-600 hover:bg-red-700 text-white font-bold rounded shadow-lg">ESTOP</button>
+          <button 
+            onClick={handleEstop}
+            className="px-4 py-1.5 bg-red-600 hover:bg-red-700 active:bg-red-800 text-white font-bold rounded shadow-lg transition-colors"
+          >
+            ESTOP
+          </button>
         </div>
       </div>
       

@@ -117,6 +117,15 @@ def execute_jog_joint(target: JointTarget):
     success = ros_node.publish_direct_joint_target(target.joints)
     return {"success": success, "message": "Jog sent"}
 
+@app.post("/api/motion/estop")
+def execute_estop():
+    if not ros_node:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=503, detail="ROS Node not ready")
+        
+    success = ros_node.publish_estop()
+    return {"success": success, "message": "ESTOP Triggered"}
+
 class CartesianTarget(BaseModel):
     axis: str
     distance: float

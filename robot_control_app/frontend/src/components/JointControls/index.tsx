@@ -107,14 +107,26 @@ const JointControls = ({ currentJoints }: { currentJoints: Record<string, number
         )}
       </div>
 
-      <div className="mt-6 flex justify-end">
-        <button 
-          onClick={() => setTargets(currentJoints)}
-          className="bg-gray-700 hover:bg-gray-600 px-4 py-2 rounded font-bold mr-4"
-          disabled={loading}
-        >
-          Reset Targets
-        </button>
+      <div className="mt-6 flex justify-between items-center">
+        <div>
+          <button 
+            onClick={() => setTargets(currentJoints)}
+            className="bg-gray-700 hover:bg-gray-600 px-4 py-2 rounded font-bold mr-3"
+            disabled={loading}
+          >
+            Sync Sliders
+          </button>
+          <button 
+            onClick={() => {
+              const homeTargets = Object.fromEntries(Object.keys(currentJoints).map(k => [k, 0.0]));
+              setTargets(homeTargets);
+            }}
+            className="bg-yellow-700 hover:bg-yellow-600 px-4 py-2 rounded font-bold"
+            disabled={loading || Object.keys(currentJoints).length === 0}
+          >
+            Zero Angles
+          </button>
+        </div>
         <button 
           onClick={handleMove}
           className={`${loading ? 'bg-blue-800 text-gray-400' : 'bg-blue-600 hover:bg-blue-500'} px-8 py-2 rounded font-bold transition-colors`}

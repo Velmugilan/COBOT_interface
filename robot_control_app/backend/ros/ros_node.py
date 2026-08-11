@@ -105,6 +105,14 @@ class RobotAppNode(Node):
         self.traj_pub.publish(msg)
         return True
 
+    def publish_estop(self):
+        from trajectory_msgs.msg import JointTrajectory
+        msg = JointTrajectory()
+        if self.joint_states:
+            msg.joint_names = list(self.joint_states.keys())
+        self.traj_pub.publish(msg)
+        return True
+
     async def spin(self):
         executor = MultiThreadedExecutor()
         executor.add_node(self)
