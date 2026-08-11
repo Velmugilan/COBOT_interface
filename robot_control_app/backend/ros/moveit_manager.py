@@ -18,6 +18,8 @@ class MoveItManager:
         # MoveGroup Action Client
         action_name = config['ros'].get('move_group_action', '/move_action')
         self._action_client = ActionClient(self.node, MoveGroup, action_name)
+        self.estopped = False
+        self.current_goal_handle = None
         
     def _create_base_request(self):
         req = MotionPlanRequest()
@@ -60,10 +62,13 @@ class MoveItManager:
 
     async def _send_goal(self, goal_msg):
         self.node.get_logger().info("Sending MoveGroup goal...")
+        self.estopped = False
         send_goal_future = self._action_client.send_goal_async(goal_msg)
         
         # Wait for goal to be accepted
         while not send_goal_future.done():
+            if self.estopped:
+                return False, "ESTOP Triggered"
             await asyncio.sleep(0.1)
             
         goal_handle = send_goal_future.result()
@@ -75,6 +80,9 @@ class MoveItManager:
         # Wait for result
         result_future = goal_handle.get_result_async()
         while not result_future.done():
+            if self.estopped:
+                self.current_goal_handle = None
+                return False, "ESTOP Triggered"
             await asyncio.sleep(0.1)
             
         self.current_goal_handle = None
@@ -82,7 +90,7 @@ class MoveItManager:
         result = result_future.result().result
         error_code = result.error_code.val
         
-        if error_code == 1: # SUCCESS
+        if error_code == 1 and not self.estopped: # SUCCESS
             return True, "Success"
         else:
             return False, f"MoveIt Error Code: {error_code}"

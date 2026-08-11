@@ -122,6 +122,8 @@ class RobotAppNode(Node):
         self.traj_pub.publish(msg)
         
         # Also try to cancel any active MoveIt goals
+        self.moveit_manager.estopped = True
+        
         if hasattr(self.moveit_manager, 'current_goal_handle') and self.moveit_manager.current_goal_handle:
             try:
                 self.moveit_manager.current_goal_handle.cancel_goal_async()
