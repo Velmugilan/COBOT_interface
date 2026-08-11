@@ -106,11 +106,28 @@ class RobotAppNode(Node):
         return True
 
     def publish_estop(self):
-        from trajectory_msgs.msg import JointTrajectory
+        from trajectory_msgs.msg import JointTrajectory, JointTrajectoryPoint
+        from builtin_interfaces.msg import Duration
+        
         msg = JointTrajectory()
         if self.joint_states:
             msg.joint_names = list(self.joint_states.keys())
+            
+            point = JointTrajectoryPoint()
+            point.positions = list(self.joint_states.values())
+            # Instruct the controller to hold current position immediately
+            point.time_from_start = Duration(sec=0, nanosec=1000000) 
+            msg.points.append(point)
+            
         self.traj_pub.publish(msg)
+        
+        # Also try to cancel any active MoveIt goals
+        if hasattr(self.moveit_manager, 'current_goal_handle') and self.moveit_manager.current_goal_handle:
+            try:
+                self.moveit_manager.current_goal_handle.cancel_goal_async()
+            except Exception as e:
+                self.get_logger().error(f"Failed to cancel MoveIt goal: {e}")
+                
         return True
 
     async def spin(self):

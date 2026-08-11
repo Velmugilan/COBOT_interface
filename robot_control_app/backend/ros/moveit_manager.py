@@ -70,10 +70,14 @@ class MoveItManager:
         if not goal_handle.accepted:
             return False, "Goal was rejected by MoveIt"
             
+        self.current_goal_handle = goal_handle
+            
         # Wait for result
         result_future = goal_handle.get_result_async()
         while not result_future.done():
             await asyncio.sleep(0.1)
+            
+        self.current_goal_handle = None
             
         result = result_future.result().result
         error_code = result.error_code.val
