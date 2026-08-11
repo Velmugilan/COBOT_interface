@@ -1,0 +1,30 @@
+<?xml version="1.0"?>
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro">
+
+  <xacro:macro name="arm_link" params="
+        prefix link_name mesh_name
+        mesh_xyz
+        com_xyz mass ixx ixy ixz iyy iyz izz">
+    <link name="${prefix}${link_name}">
+      <visual>
+        <origin xyz="${mesh_xyz}" rpy="0 0 0"/>
+        <geometry>
+          <mesh filename="package://arm_description/meshes/visual/${mesh_name}.dae"/>
+        </geometry>
+      </visual>
+      <collision>
+        <origin xyz="${mesh_xyz}" rpy="0 0 0"/>
+        <geometry>
+          <mesh filename="package://arm_description/meshes/collision/${mesh_name}.stl"/>
+        </geometry>
+      </collision>
+      <inertial>
+        <origin xyz="${com_xyz}" rpy="0 0 0"/>
+        <mass value="${mass}"/>
+        <inertia ixx="${ixx}" ixy="${ixy}" ixz="${ixz}"
+                 iyy="${iyy}" iyz="${iyz}" izz="${izz}"/>
+      </inertial>
+    </link>
+  </xacro:macro>
+
+</robot>

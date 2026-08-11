@@ -1,0 +1,6 @@
+INFO:     Started server process [64024]
+INFO:     Waiting for application startup.
+[INFO] [1786449608.115175876] [robot_control_app_backend]: Initializing Robot Control App Node
+[INFO] [1786449608.125114330] [robot_control_app_backend]: ROS 2 Executor spinning in background thread
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://127.0.0.1:8001 (Press CTRL+C to quit)

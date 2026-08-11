@@ -1,0 +1,30 @@
+# ROS 2 workspaces
+build/
+install/
+log/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+env/
+venv/
+.venv/
+
+# Node/Vite (Frontend)
+node_modules/
+dist/
+dist-ssr/
+.cache/
+*.local
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db

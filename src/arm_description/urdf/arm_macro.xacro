@@ -1,0 +1,128 @@
+<?xml version="1.0"?>
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro">
+
+  <xacro:include filename="$(find arm_description)/urdf/arm_link.xacro"/>
+
+  <xacro:macro name="arm" params="prefix">
+
+    <!-- ================= LINKS ================= -->
+    <!-- Inertial origin = mesh COM + mesh offset. Density 400 kg/m^3
+         (effective, hollow shell). Replace with CAD values for the real arm. -->
+
+    <xacro:arm_link prefix="${prefix}" link_name="base_link" mesh_name="link_0"
+        mesh_xyz="0 0 0"
+        com_xyz="0.000000 0.000000 0.031974" mass="1.4838"
+        ixx="0.007208" ixy="0.000000" ixz="0.000000"
+        iyy="0.006344" iyz="0.000000" izz="0.012275"/>
+
+    <xacro:arm_link prefix="${prefix}" link_name="link_1" mesh_name="link_1"
+        mesh_xyz="0 0 -0.182"
+        com_xyz="-0.018749 -0.000390 -0.044367" mass="3.4552"
+        ixx="0.027198" ixy="-0.000060" ixz="0.001553"
+        iyy="0.029312" iyz="0.000012" izz="0.018389"/>
+
+    <xacro:arm_link prefix="${prefix}" link_name="link_2" mesh_name="link_2"
+        mesh_xyz="0 0 -0.168"
+        com_xyz="0.338334 0.000213 -0.039906" mass="15.0734"
+        ixx="0.114390" ixy="-0.000471" ixz="-0.009314"
+        iyy="0.948155" iyz="-0.000007" izz="0.916777"/>
+
+    <xacro:arm_link prefix="${prefix}" link_name="link_3" mesh_name="link_3"
+        mesh_xyz="0 0 -0.144"
+        com_xyz="0.208861 0.000085 -0.023579" mass="8.2217"
+        ixx="0.046043" ixy="-0.000248" ixz="-0.011878"
+        iyy="0.299759" iyz="-0.000006" izz="0.287338"/>
+
+    <xacro:arm_link prefix="${prefix}" link_name="link_4" mesh_name="link_4"
+        mesh_xyz="0 0 0.077"
+        com_xyz="0.032703 -0.000104 0.166168" mass="1.3537"
+        ixx="0.004303" ixy="0.000007" ixz="-0.000456"
+        iyy="0.006387" iyz="0.000002" izz="0.005021"/>
+
+    <xacro:arm_link prefix="${prefix}" link_name="link_5" mesh_name="link_5"
+        mesh_xyz="0 0 0.113"
+        com_xyz="-0.011438 0.000000 0.211699" mass="1.1990"
+        ixx="0.004571" ixy="0.000000" ixz="0.000252"
+        iyy="0.005161" iyz="0.000000" izz="0.003173"/>
+
+    <xacro:arm_link prefix="${prefix}" link_name="link_6" mesh_name="link_6"
+        mesh_xyz="0 0 0.086"
+        com_xyz="-0.003253 0.000075 0.176217" mass="0.8599"
+        ixx="0.003124" ixy="0.000010" ixz="0.000086"
+        iyy="0.003146" iyz="0.000001" izz="0.001615"/>
+
+    <link name="${prefix}ft_frame"/>
+    <link name="${prefix}tool0"/>
+
+    <!-- ================= JOINTS ================= -->
+
+
+    <joint name="${prefix}joint_1" type="revolute">
+      <origin xyz="0 0 0.244" rpy="0 0 0"/>
+      <parent link="${prefix}base_link"/>
+      <child  link="${prefix}link_1"/>
+      <axis xyz="0 0 1"/>
+      <limit lower="${-pi}" upper="${pi}" effort="150.0" velocity="2.16"/>
+      <dynamics damping="1.0" friction="0.5"/>
+    </joint>
+
+    <joint name="${prefix}joint_2" type="revolute">
+      <origin xyz="-0.27 0 0.0" rpy="${-pi/2} ${-pi/2} ${pi/2}"/>
+      <parent link="${prefix}link_1"/>
+      <child  link="${prefix}link_2"/>
+      <axis xyz="0 0 1"/>
+      <limit lower="-2.09" upper="2.09" effort="200.0" velocity="2.16"/>
+      <dynamics damping="1.0" friction="0.5"/>
+    </joint>
+
+    <joint name="${prefix}joint_3" type="revolute">
+      <origin xyz="0.686 0 -0.27" rpy="0 ${pi} ${pi+pi/2}"/>
+      <parent link="${prefix}link_2"/>
+      <child  link="${prefix}link_3"/>
+      <axis xyz="0 0 1"/>
+      <limit lower="-2.62" upper="2.62" effort="150.0" velocity="2.61"/>
+      <dynamics damping="0.5" friction="0.3"/>
+    </joint>
+
+    <joint name="${prefix}joint_4" type="revolute">
+      <origin xyz="0.519 0 0" rpy="0 ${pi} ${pi}"/>
+      <parent link="${prefix}link_3"/>
+      <child  link="${prefix}link_4"/>
+      <axis xyz="0 0 1"/>
+      <limit lower="${-pi}" upper="${pi}" effort="50.0" velocity="3.14"/>
+      <dynamics damping="0.1" friction="0.05"/>
+    </joint>
+
+    <joint name="${prefix}joint_5" type="revolute">
+      <origin xyz="0.0 0 0.188" rpy="${pi/2} ${pi} ${pi/2}"/>
+      <parent link="${prefix}link_4"/>
+      <child  link="${prefix}link_5"/>
+      <axis xyz="0 0 1"/>
+      <limit lower="-2.09" upper="2.09" effort="50.0" velocity="3.14"/>
+      <dynamics damping="0.1" friction="0.05"/>
+    </joint>
+
+    <joint name="${prefix}joint_6" type="revolute">
+      <origin xyz="0.0 0 0.246" rpy="0 ${-pi/2} 0"/>
+      <parent link="${prefix}link_5"/>
+      <child  link="${prefix}link_6"/>
+      <axis xyz="0 0 1"/>
+      <limit lower="${-pi}" upper="${pi}" effort="30.0" velocity="4.19"/>
+      <dynamics damping="0.1" friction="0.05"/>
+    </joint>
+
+    <joint name="${prefix}joint_ft" type="fixed">
+      <origin xyz="0 0 0.086" rpy="0 0 0"/>
+      <parent link="${prefix}link_6"/>
+      <child  link="${prefix}ft_frame"/>
+    </joint>
+
+    <joint name="${prefix}joint_tool0" type="fixed">
+      <origin xyz="0 0 0.185" rpy="0 0 0"/>
+      <parent link="${prefix}ft_frame"/>
+      <child  link="${prefix}tool0"/>
+    </joint>
+
+  </xacro:macro>
+
+</robot>

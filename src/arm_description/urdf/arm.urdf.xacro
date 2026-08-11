@@ -1,0 +1,6 @@
+<?xml version="1.0"?>
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro" name="cobot">
+  <xacro:arg name="prefix" default=""/>
+  <xacro:include filename="$(find arm_description)/urdf/arm_macro.xacro"/>
+  <xacro:arm prefix="$(arg prefix)"/>
+</robot>

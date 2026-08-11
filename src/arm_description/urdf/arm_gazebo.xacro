@@ -1,0 +1,50 @@
+<?xml version="1.0"?>
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro">
+
+  <xacro:macro name="arm_gazebo" params="prefix controller_config">
+
+    <ros2_control name="${prefix}GazeboSystem" type="system">
+      <hardware>
+        <plugin>gz_ros2_control/GazeboSimSystem</plugin>
+      </hardware>
+      <xacro:macro name="jnt" params="n">
+        <joint name="${prefix}joint_${n}">
+          <command_interface name="position"/>
+          <state_interface name="position"/>
+          <state_interface name="velocity"/>
+          <state_interface name="effort"/>
+        </joint>
+      </xacro:macro>
+      <xacro:jnt n="1"/>
+      <xacro:jnt n="2"/>
+      <xacro:jnt n="3"/>
+      <xacro:jnt n="4"/>
+      <xacro:jnt n="5"/>
+      <xacro:jnt n="6"/>
+    </ros2_control>
+
+    <gazebo>
+      <plugin filename="gz_ros2_control-system"
+              name="gz_ros2_control::GazeboSimROS2ControlPlugin">
+        <parameters>${controller_config}</parameters>
+      </plugin>
+    </gazebo>
+
+    <xacro:macro name="lnk" params="name mu">
+      <gazebo reference="${prefix}${name}">
+        <mu1>${mu}</mu1>
+        <mu2>${mu}</mu2>
+        <self_collide>true</self_collide>
+      </gazebo>
+    </xacro:macro>
+    <xacro:lnk name="base_link" mu="0.8"/>
+    <xacro:lnk name="link_1" mu="0.8"/>
+    <xacro:lnk name="link_2" mu="0.8"/>
+    <xacro:lnk name="link_3" mu="0.8"/>
+    <xacro:lnk name="link_4" mu="0.8"/>
+    <xacro:lnk name="link_5" mu="0.8"/>
+    <xacro:lnk name="link_6" mu="0.8"/>
+
+  </xacro:macro>
+
+</robot>
