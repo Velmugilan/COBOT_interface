@@ -1,7 +1,13 @@
 import asyncio
+import io
+import re
+import subprocess
+import time
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import StreamingResponse, Response
 from fastapi.staticfiles import StaticFiles
+from PIL import Image
 import yaml
 import os
 
@@ -9,10 +15,14 @@ from backend.ros.ros_node import RobotAppNode
 
 app = FastAPI(title="Robot Control API")
 
-# Mount ROS workspace install share directory so frontend can load meshes
-workspace_share = os.path.expanduser("~/cobot_ws/install/arm_description/share/arm_description")
-if os.path.exists(workspace_share):
-    app.mount("/ros_packages/arm_description", StaticFiles(directory=workspace_share), name="ros_packages")
+# Mount ROS workspace src directory so frontend can load meshes (avoids symlink 404s)
+workspace_src = os.path.expanduser("~/cobot_ws/src/arm_description")
+workspace_install = os.path.expanduser("~/cobot_ws/install/arm_description/share/arm_description")
+
+if os.path.exists(workspace_src):
+    app.mount("/ros_packages/arm_description", StaticFiles(directory=workspace_src), name="ros_packages")
+elif os.path.exists(workspace_install):
+    app.mount("/ros_packages/arm_description", StaticFiles(directory=workspace_install), name="ros_packages")
 
 app.add_middleware(
     CORSMiddleware,
@@ -79,6 +89,102 @@ def get_robot_description():
         return Response(content=result.stdout, media_type="application/xml")
     except subprocess.CalledProcessError as e:
         raise HTTPException(status_code=500, detail=f"Xacro compilation failed: {e.stderr}")
+
+import mss
+
+import Xlib.display
+from Xlib.ext import composite
+
+def _find_rviz_window(win):
+    try:
+        name = win.get_wm_name()
+        wm_class = win.get_wm_class()
+        
+        if name and ('rviz' in name.lower() or 'moveit' in name.lower()):
+            geom = win.get_geometry()
+            if geom.width > 100 and geom.height > 100:
+                return win
+                
+        if wm_class and ('rviz' in wm_class[0].lower() or 'moveit' in wm_class[0].lower()):
+            geom = win.get_geometry()
+            if geom.width > 100 and geom.height > 100:
+                return win
+                
+        for child in win.query_tree().children:
+            res = _find_rviz_window(child)
+            if res:
+                return res
+    except Exception:
+        pass
+    return None
+
+def _capture_rviz_composite() -> bytes:
+    """Capture RViz even when occluded using XComposite extension."""
+    try:
+        d = Xlib.display.Display()
+        root = d.screen().root
+        win = _find_rviz_window(root)
+        
+        if not win:
+            d.close()
+            return b''
+            
+        # Redirect the window rendering to an off-screen pixmap
+        composite.redirect_window(win, composite.RedirectAutomatic)
+        d.sync()
+        
+        geom = win.get_geometry()
+        
+        try:
+            # Grab the actual pixels from the window's backing store
+            raw = win.get_image(0, 0, geom.width, geom.height, Xlib.X.ZPixmap, 0xffffffff)
+            img_pil = Image.frombytes("RGB", (geom.width, geom.height), raw.data, "raw", "BGRX")
+            
+            # Resize for bandwidth efficiency
+            img_pil.thumbnail((960, 720), Image.LANCZOS)
+            buf = io.BytesIO()
+            img_pil.save(buf, format='JPEG', quality=75)
+            
+            return buf.getvalue()
+        finally:
+            composite.unredirect_window(win, composite.RedirectAutomatic)
+            d.sync()
+            d.close()
+            
+    except Exception as e:
+        print(f"[RVIZ] XComposite Capture error: {e}")
+        return b''
+
+# Keep the MJPEG stream endpoint for backward compat
+@app.get("/api/rviz/stream")
+def rviz_mjpeg_stream():
+    """Stream RViz window as MJPEG."""
+    def generate():
+        while True:
+            frame = _capture_rviz_composite()
+            if not frame:
+                img = Image.new('RGB', (640, 480), color=(17, 24, 39))
+                buf = io.BytesIO()
+                img.save(buf, format='JPEG', quality=50)
+                frame = buf.getvalue()
+            yield (b'--frame\r\n'
+                   b'Content-Type: image/jpeg\r\n\r\n' + frame + b'\r\n')
+            time.sleep(0.15)
+    return StreamingResponse(generate(), media_type='multipart/x-mixed-replace; boundary=frame')
+
+@app.get("/api/rviz/snapshot")
+def rviz_snapshot():
+    """Return a single JPEG snapshot of the RViz window."""
+    frame = _capture_rviz_composite()
+    if not frame:
+        img = Image.new('RGB', (640, 480), color=(17, 24, 39))
+        buf = io.BytesIO()
+        img.save(buf, format='JPEG', quality=50)
+        return Response(content=buf.getvalue(), media_type="image/jpeg",
+                       headers={"X-Rviz-Status": "capture-failed"})
+    
+    return Response(content=frame, media_type="image/jpeg",
+                   headers={"X-Rviz-Status": "ok", "Cache-Control": "no-cache"})
 
 @app.get("/api/system/readiness")
 def get_readiness():

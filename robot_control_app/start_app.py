@@ -40,14 +40,14 @@ def cleanup_zombies():
     """Kill all leftover ROS/Gazebo processes from previous runs."""
     print("[ROBOT APP] Cleaning up zombie processes from previous runs...")
     targets = [
-        "gzserver", "gzclient", "ign gazebo", "ruby",  # Gazebo Ignition
+        "ros2", "gzserver", "gzclient", "ign gazebo", "ruby",  # Core and Gazebo Ignition
         "move_group",                                     # MoveIt
         "rviz2",                                          # RViz
         "controller_manager",                             # ros2_control
         "robot_state_publisher",                          # RSP
         "parameter_bridge",                               # ros_gz_bridge
         "ros_gz_sim",                                     # spawn entity
-        "uvicorn",                                        # FastAPI backend
+        "uvicorn", "node", "vite"                         # FastAPI and Frontend
     ]
     for t in targets:
         subprocess.run(
@@ -80,8 +80,9 @@ def main():
     env = os.environ.copy()
     # Do NOT set ROS_DOMAIN_ID — it breaks DDS shared-memory transport
     
-    # We must source bashrc or setup.bash before running ros2 launch
-    gazebo_cmd = f"source {workspace_dir}/install/setup.bash && ros2 launch arm_bringup gazebo.launch.py"
+    # We must source bashrc or setup.bash before running ros2 launch. 
+    # Force ROS_DOMAIN_ID=0 to enable shared memory and avoid buffer sequence errors.
+    gazebo_cmd = f"export ROS_DOMAIN_ID=0 && source {workspace_dir}/install/setup.bash && exec ros2 launch arm_bringup gazebo.launch.py"
     gazebo_proc = subprocess.Popen(["bash", "-c", gazebo_cmd], env=env)
     processes.append(gazebo_proc)
     
@@ -90,7 +91,7 @@ def main():
 
     # 2. Start MoveIt
     print("[ROBOT APP] Starting MoveIt 2 pipeline...")
-    moveit_cmd = f"source {workspace_dir}/install/setup.bash && ros2 launch arm_bringup moveit_gazebo.launch.py"
+    moveit_cmd = f"export ROS_DOMAIN_ID=0 && source {workspace_dir}/install/setup.bash && exec ros2 launch arm_bringup moveit_gazebo.launch.py"
     moveit_proc = subprocess.Popen(["bash", "-c", moveit_cmd], env=env)
     processes.append(moveit_proc)
     
@@ -99,7 +100,7 @@ def main():
 
     # 3. Start Backend
     print("[ROBOT APP] Starting FastAPI backend...")
-    backend_cmd = f"source {workspace_dir}/install/setup.bash && cd {app_dir} && python3 -m uvicorn backend.main:app --host 0.0.0.0 --port 8000"
+    backend_cmd = f"export ROS_DOMAIN_ID=0 && source {workspace_dir}/install/setup.bash && cd {app_dir} && exec python3 -m uvicorn backend.main:app --host 0.0.0.0 --port 8000"
     backend_proc = subprocess.Popen(["bash", "-c", backend_cmd], env=env)
     processes.append(backend_proc)
     
@@ -109,7 +110,7 @@ def main():
 
     # 4. Start Frontend
     print("[ROBOT APP] Starting Vite frontend...")
-    frontend_cmd = f"cd {app_dir}/frontend && npm run dev"
+    frontend_cmd = f"cd {app_dir}/frontend && exec npm run dev"
     frontend_proc = subprocess.Popen(["bash", "-c", frontend_cmd], env=env)
     processes.append(frontend_proc)
     

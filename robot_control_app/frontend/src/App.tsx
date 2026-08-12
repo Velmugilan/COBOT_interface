@@ -81,31 +81,31 @@ const App = () => {
         </div>
         
         {/* Working Area */}
-        <div className="flex-1 p-6 overflow-auto">
-          <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 h-full min-h-[800px]">
+        <div className="flex-1 p-4 overflow-hidden bg-gray-900">
+          <div className="grid grid-cols-1 xl:grid-cols-3 gap-4 h-full">
             {/* Left column: Controls */}
-            <div className="flex flex-col space-y-6">
-              <div className="bg-gray-800 p-6 rounded-lg shadow-lg border border-gray-700">
-                <h2 className="text-lg font-bold mb-4 border-b border-gray-700 pb-2">System Readiness</h2>
-                <div className="space-y-3">
-                  <div className="flex justify-between"><span className="text-gray-400">ROS 2</span><span className="text-green-500">READY</span></div>
-                  <div className="flex justify-between"><span className="text-gray-400">Gazebo</span><span className="text-green-500">READY</span></div>
-                  <div className="flex justify-between"><span className="text-gray-400">Controllers</span><span className="text-green-500">READY</span></div>
-                  <div className="flex justify-between"><span className="text-gray-400">MoveIt</span><span className="text-green-500">READY</span></div>
+            <div className="flex flex-col space-y-4 overflow-y-auto pr-2 pb-2">
+              <div className="bg-gray-800 p-4 rounded-lg shadow-lg border border-gray-700 shrink-0">
+                <h2 className="text-lg font-bold mb-3 border-b border-gray-700 pb-2">System Readiness</h2>
+                <div className="space-y-2 text-sm">
+                  <div className="flex justify-between"><span className="text-gray-400">ROS 2</span><span className="text-green-500 font-bold">READY</span></div>
+                  <div className="flex justify-between"><span className="text-gray-400">Gazebo</span><span className="text-green-500 font-bold">READY</span></div>
+                  <div className="flex justify-between"><span className="text-gray-400">Controllers</span><span className="text-green-500 font-bold">READY</span></div>
+                  <div className="flex justify-between"><span className="text-gray-400">MoveIt</span><span className="text-green-500 font-bold">READY</span></div>
                 </div>
               </div>
               
-              <JointControls currentJoints={joints} />
-              <CartesianJog />
+              <div className="shrink-0"><JointControls currentJoints={joints} /></div>
+              <div className="shrink-0"><CartesianJog /></div>
             </div>
             
             {/* Middle column: 3D viewer */}
-            <div className="bg-gray-800 rounded-lg shadow-lg flex items-center justify-center relative overflow-hidden h-full min-h-[400px]">
+            <div className="bg-gray-800 rounded-lg shadow-lg flex items-center justify-center relative overflow-hidden h-full border border-gray-700">
                <RobotViewer3D joints={joints} />
             </div>
 
             {/* Right column: Program Editor */}
-            <div className="flex flex-col h-full">
+            <div className="flex flex-col h-full overflow-hidden border border-gray-700 rounded-lg shadow-lg">
                <ProgramEditor currentJoints={joints} />
             </div>
           </div>
