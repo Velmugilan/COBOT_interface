@@ -3,8 +3,6 @@ import { Canvas, useFrame } from '@react-three/fiber';
 import { OrbitControls, Grid, Environment } from '@react-three/drei';
 import * as THREE from 'three';
 import URDFLoader from 'urdf-loader';
-import { STLLoader } from 'three/examples/jsm/loaders/STLLoader.js';
-import { ColladaLoader } from 'three/examples/jsm/loaders/ColladaLoader.js';
 
 const URDFRobot = ({ joints }: { joints: Record<string, number> }) => {
   const [robot, setRobot] = useState<any>(null);
@@ -21,21 +19,6 @@ const URDFRobot = ({ joints }: { joints: Record<string, number> }) => {
       try {
         const manager = new THREE.LoadingManager();
         const loader = new URDFLoader(manager);
-        
-        loader.loadMeshCb = (path: string, manager: THREE.LoadingManager, done: (mesh: any, err?: any) => void) => {
-          if (/\.stl$/i.test(path)) {
-              const stlLoader = new STLLoader(manager);
-              stlLoader.load(path, (geom) => {
-                  const mesh = new THREE.Mesh(geom, new THREE.MeshStandardMaterial());
-                  done(mesh);
-              }, undefined, (err) => done(null, err));
-          } else if (/\.dae$/i.test(path)) {
-              const daeLoader = new ColladaLoader(manager);
-              daeLoader.load(path, (dae) => done(dae.scene), undefined, (err) => done(null, err));
-          } else {
-              done(null, new Error("Unsupported mesh format: " + path));
-          }
-        };
         
         // This requires a static URDF file without xacro macros.
         // Assuming the backend provides a compiled URDF at /api/robot/description

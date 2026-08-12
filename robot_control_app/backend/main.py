@@ -67,18 +67,17 @@ def health_check():
 @app.get("/api/robot/description")
 def get_robot_description():
     import subprocess
+    from fastapi import Response, HTTPException
     # Run xacro to generate URDF xml on the fly
     xacro_path = os.path.expanduser("~/cobot_ws/src/arm_description/urdf/arm_sim.urdf.xacro")
     if not os.path.exists(xacro_path):
-        from fastapi import HTTPException
         raise HTTPException(status_code=404, detail="Xacro file not found")
         
     try:
         # Use ROS 2 command to parse xacro
         result = subprocess.run(['xacro', xacro_path], capture_output=True, text=True, check=True)
-        return result.stdout
+        return Response(content=result.stdout, media_type="application/xml")
     except subprocess.CalledProcessError as e:
-        from fastapi import HTTPException
         raise HTTPException(status_code=500, detail=f"Xacro compilation failed: {e.stderr}")
 
 @app.get("/api/system/readiness")
