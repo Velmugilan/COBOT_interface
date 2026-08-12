@@ -78,6 +78,7 @@ def main():
     # 1. Start Gazebo + Controllers
     print("[ROBOT APP] Starting simulation (Gazebo + Controllers)...")
     env = os.environ.copy()
+    env["ROS_LOCALHOST_ONLY"] = "1"
     # Do NOT set ROS_DOMAIN_ID — it breaks DDS shared-memory transport
     
     # We must source bashrc or setup.bash before running ros2 launch

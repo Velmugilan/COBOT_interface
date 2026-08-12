@@ -139,6 +139,77 @@ async def execute_cartesian_motion(target: CartesianTarget):
     success, message = await ros_node.moveit_manager.plan_and_execute_cartesian_target(target.axis, target.distance)
     return {"success": success, "message": message}
 
+import Xlib.display
+from Xlib.ext import composite
+import io
+from PIL import Image
+from fastapi.responses import Response
+
+def _find_rviz_window(win):
+    try:
+        name = win.get_wm_name()
+        wm_class = win.get_wm_class()
+        
+        if name and ('rviz' in name.lower() or 'moveit' in name.lower()):
+            geom = win.get_geometry()
+            if geom.width > 100 and geom.height > 100:
+                return win
+                
+        if wm_class and ('rviz' in wm_class[0].lower() or 'moveit' in wm_class[0].lower()):
+            geom = win.get_geometry()
+            if geom.width > 100 and geom.height > 100:
+                return win
+                
+        for child in win.query_tree().children:
+            res = _find_rviz_window(child)
+            if res:
+                return res
+    except Exception:
+        pass
+    return None
+
+def _capture_rviz_composite() -> bytes:
+    try:
+        d = Xlib.display.Display()
+        root = d.screen().root
+        win = _find_rviz_window(root)
+        
+        if not win:
+            d.close()
+            return b''
+            
+        composite.redirect_window(win, composite.RedirectAutomatic)
+        d.sync()
+        geom = win.get_geometry()
+        
+        try:
+            raw = win.get_image(0, 0, geom.width, geom.height, Xlib.X.ZPixmap, 0xffffffff)
+            img_pil = Image.frombytes("RGB", (geom.width, geom.height), raw.data, "raw", "BGRX")
+            img_pil.thumbnail((960, 720), Image.LANCZOS)
+            buf = io.BytesIO()
+            img_pil.save(buf, format='JPEG', quality=75)
+            return buf.getvalue()
+        finally:
+            composite.unredirect_window(win, composite.RedirectAutomatic)
+            d.sync()
+            d.close()
+    except Exception as e:
+        print(f"[RVIZ] XComposite Capture error: {e}")
+        return b''
+
+@app.get("/api/rviz/snapshot")
+def rviz_snapshot():
+    frame = _capture_rviz_composite()
+    if not frame:
+        img = Image.new('RGB', (640, 480), color=(17, 24, 39))
+        buf = io.BytesIO()
+        img.save(buf, format='JPEG', quality=50)
+        return Response(content=buf.getvalue(), media_type="image/jpeg",
+                       headers={"X-Rviz-Status": "capture-failed"})
+    
+    return Response(content=frame, media_type="image/jpeg",
+                   headers={"X-Rviz-Status": "ok", "Cache-Control": "no-cache"})
+
 @app.websocket("/ws/robot")
 async def websocket_endpoint(websocket: WebSocket):
     await websocket.accept()
