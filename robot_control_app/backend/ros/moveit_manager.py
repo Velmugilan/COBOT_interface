@@ -2,6 +2,7 @@ import rclpy
 from rclpy.action import ActionClient
 from moveit_msgs.action import MoveGroup
 from moveit_msgs.msg import MotionPlanRequest, WorkspaceParameters, Constraints, JointConstraint, PositionConstraint, OrientationConstraint, BoundingVolume
+from control_msgs.action import GripperCommand
 from shape_msgs.msg import SolidPrimitive
 from geometry_msgs.msg import PoseStamped, Point
 import math
@@ -18,6 +19,10 @@ class MoveItManager:
         # MoveGroup Action Client
         action_name = config['ros'].get('move_group_action', '/move_action')
         self._action_client = ActionClient(self.node, MoveGroup, action_name)
+        
+        # Gripper Action Client
+        self._gripper_client = ActionClient(self.node, GripperCommand, '/gripper_controller/gripper_cmd')
+        
         self.estopped = False
         self.current_goal_handle = None
         
@@ -160,3 +165,76 @@ class MoveItManager:
         goal_msg.request.goal_constraints.append(constraints)
         
         return await self._send_goal(goal_msg)
+
+    async def _send_gripper_command(self, position, max_effort=60.0):
+        if not self._gripper_client.wait_for_server(timeout_sec=1.0):
+            return False, "Gripper action server not available"
+            
+        goal_msg = GripperCommand.Goal()
+        goal_msg.command.position = float(position)
+        goal_msg.command.max_effort = float(max_effort)
+        
+        future = self._gripper_client.send_goal_async(goal_msg)
+        while not future.done():
+            if self.estopped: return False, "ESTOP"
+            import asyncio
+            await asyncio.sleep(0.1)
+            
+        handle = future.result()
+        if not handle.accepted:
+            return False, "Gripper goal rejected"
+            
+        res_future = handle.get_result_async()
+        while not res_future.done():
+            if self.estopped: return False, "ESTOP"
+            import asyncio
+            await asyncio.sleep(0.1)
+            
+        return True, "Gripper action completed"
+
+    async def open_gripper(self):
+        from std_msgs.msg import Empty
+        # Position 0.04 is fully open
+        success, msg = await self._send_gripper_command(0.04)
+        if success:
+            self.node.detach_pub.publish(Empty())
+        return success, msg
+
+    async def close_gripper(self):
+        from std_msgs.msg import Empty
+        # Position 0.0 is fully closed
+        success, msg = await self._send_gripper_command(0.00)
+        if success:
+            self.node.attach_pub.publish(Empty())
+        return success, msg
+
+    async def run_pick_and_place(self):
+        # A simple hardcoded sequence for demonstration
+        # 1. Move to Pre-Pick
+        self.node.get_logger().info("Moving to Pre-Pick")
+        await self.plan_and_execute_joint_target({'joint_1': 0.0, 'joint_2': -0.78, 'joint_3': 1.57, 'joint_4': -0.78, 'joint_5': -1.57, 'joint_6': 0.0})
+        await self.open_gripper()
+        
+        # 2. Move Down (Pick)
+        self.node.get_logger().info("Moving to Pick")
+        await self.plan_and_execute_cartesian_target('z', -0.15)
+        await self.close_gripper()
+        
+        # 3. Move Up
+        self.node.get_logger().info("Moving Up")
+        await self.plan_and_execute_cartesian_target('z', 0.2)
+        
+        # 4. Move to Place
+        self.node.get_logger().info("Moving to Place")
+        await self.plan_and_execute_joint_target({'joint_1': 1.57, 'joint_2': -0.78, 'joint_3': 1.57, 'joint_4': -0.78, 'joint_5': -1.57, 'joint_6': 0.0})
+        
+        # 5. Move Down (Place)
+        self.node.get_logger().info("Moving Down to Place")
+        await self.plan_and_execute_cartesian_target('z', -0.15)
+        await self.open_gripper()
+        
+        # 6. Move Up
+        self.node.get_logger().info("Moving Up")
+        await self.plan_and_execute_cartesian_target('z', 0.2)
+        
+        return True, "Pick and Place Sequence Completed!"

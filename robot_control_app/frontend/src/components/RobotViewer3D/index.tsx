@@ -13,7 +13,7 @@ const RobotViewer3D = ({ joints }: { joints: Record<string, number> }) => {
       
       try {
         const timestamp = new Date().getTime();
-        const url = `http://${window.location.hostname}:8000/api/rviz/snapshot?t=${timestamp}`;
+        const url = `http://${window.location.hostname}:8000/api/camera/snapshot?t=${timestamp}`;
         
         // Preload image to avoid flickering
         const img = new Image();
@@ -21,7 +21,7 @@ const RobotViewer3D = ({ joints }: { joints: Record<string, number> }) => {
           if (isSubscribed) {
             setImgSrc(url);
             setErrorCount(0);
-            setTimeout(fetchSnapshot, 150); // ~7 FPS
+            setTimeout(fetchSnapshot, 100); // ~10 FPS for camera
           }
         };
         img.onerror = () => {
@@ -51,16 +51,16 @@ const RobotViewer3D = ({ joints }: { joints: Record<string, number> }) => {
       {imgSrc && errorCount < 3 ? (
         <img 
           src={imgSrc} 
-          alt="RViz Live View" 
+          alt="Robot Camera Feed" 
           className="w-full h-full object-cover rounded-lg"
         />
       ) : (
         <div className="flex flex-col items-center justify-center h-full w-full text-center p-6 text-gray-400">
-           <svg className="w-16 h-16 mb-4 text-blue-500 animate-pulse" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+           <svg className="w-16 h-16 mb-4 text-emerald-500 animate-pulse" fill="none" stroke="currentColor" viewBox="0 0 24 24">
              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"></path>
            </svg>
-           <h3 className="text-xl font-bold text-white mb-2">Waiting for RViz...</h3>
-           <p className="text-sm">Connecting to background XComposite buffer</p>
+           <h3 className="text-xl font-bold text-white mb-2">Waiting for Camera Feed...</h3>
+           <p className="text-sm">Connecting to /wrist_camera/image</p>
         </div>
       )}
     </div>

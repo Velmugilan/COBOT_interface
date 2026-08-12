@@ -2,8 +2,8 @@ import React, { useState } from 'react';
 
 interface Waypoint {
   id: number;
-  type: 'JOINT' | 'CARTESIAN';
-  data: Record<string, number> | { axis: string, distance: number };
+  type: 'JOINT' | 'CARTESIAN' | 'GRIPPER_OPEN' | 'GRIPPER_CLOSE';
+  data?: Record<string, number> | { axis: string, distance: number };
 }
 
 const ProgramEditor = ({ currentJoints }: { currentJoints: Record<string, number> }) => {
@@ -27,6 +27,28 @@ const ProgramEditor = ({ currentJoints }: { currentJoints: Record<string, number
     }]);
   };
 
+  const addGripperWaypoint = (isOpen: boolean) => {
+    setProgram([...program, {
+      id: Date.now(),
+      type: isOpen ? 'GRIPPER_OPEN' : 'GRIPPER_CLOSE',
+    }]);
+  };
+
+  const loadDemoPickAndPlace = () => {
+    // 1: Move to Pre-Pick, 2: Open, 3: Down, 4: Close, 5: Up, 6: Place, 7: Down, 8: Open, 9: Up
+    setProgram([
+      { id: Date.now() + 1, type: 'JOINT', data: {'joint_1': 0.0, 'joint_2': -0.78, 'joint_3': 1.57, 'joint_4': -0.78, 'joint_5': -1.57, 'joint_6': 0.0} },
+      { id: Date.now() + 2, type: 'GRIPPER_OPEN' },
+      { id: Date.now() + 3, type: 'CARTESIAN', data: { axis: 'z', distance: -0.15 } },
+      { id: Date.now() + 4, type: 'GRIPPER_CLOSE' },
+      { id: Date.now() + 5, type: 'CARTESIAN', data: { axis: 'z', distance: 0.2 } },
+      { id: Date.now() + 6, type: 'JOINT', data: {'joint_1': 1.57, 'joint_2': -0.78, 'joint_3': 1.57, 'joint_4': -0.78, 'joint_5': -1.57, 'joint_6': 0.0} },
+      { id: Date.now() + 7, type: 'CARTESIAN', data: { axis: 'z', distance: -0.15 } },
+      { id: Date.now() + 8, type: 'GRIPPER_OPEN' },
+      { id: Date.now() + 9, type: 'CARTESIAN', data: { axis: 'z', distance: 0.2 } },
+    ]);
+  };
+
   const removeWaypoint = (id: number) => {
     setProgram(program.filter(w => w.id !== id));
   };
@@ -48,19 +70,25 @@ const ProgramEditor = ({ currentJoints }: { currentJoints: Record<string, number
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ joints: wp.data })
           });
-        } else {
+        } else if (wp.type === 'CARTESIAN') {
           res = await fetch(`http://${window.location.hostname}:8000/api/motion/cartesian`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(wp.data)
           });
+        } else if (wp.type === 'GRIPPER_OPEN') {
+          res = await fetch(`http://${window.location.hostname}:8000/api/gripper/open`, { method: "POST" });
+        } else if (wp.type === 'GRIPPER_CLOSE') {
+          res = await fetch(`http://${window.location.hostname}:8000/api/gripper/close`, { method: "POST" });
         }
         
-        const data = await res.json();
-        if (!data.success) {
-          setResultMsg(`Failed at step ${i + 1}: ${data.message}`);
-          setRunning(false);
-          return;
+        if (res) {
+          const data = await res.json();
+          if (!data.success) {
+            setResultMsg(`Failed at step ${i + 1}: ${data.message}`);
+            setRunning(false);
+            return;
+          }
         }
       } catch (e: any) {
         setResultMsg(`Error at step ${i + 1}: ${e.message}`);
@@ -80,20 +108,41 @@ const ProgramEditor = ({ currentJoints }: { currentJoints: Record<string, number
         <span className={resultMsg.includes("Success") ? "text-green-500" : "text-yellow-500"}>{resultMsg}</span>
       </h2>
       
-      <div className="flex space-x-4 mb-4">
+      <div className="flex flex-wrap gap-2 mb-4">
         <button 
           onClick={addJointWaypoint}
           disabled={running}
-          className="bg-purple-600 hover:bg-purple-500 px-4 py-2 rounded text-sm font-bold shadow transition-colors"
+          className="bg-purple-600 hover:bg-purple-500 px-3 py-1.5 rounded text-xs font-bold shadow transition-colors"
         >
-          + Record Current Joint Pose
+          + Record Joint Pose
         </button>
         <button 
           onClick={() => addCartesianWaypoint('z', -0.1)}
           disabled={running}
-          className="bg-teal-600 hover:bg-teal-500 px-4 py-2 rounded text-sm font-bold shadow transition-colors"
+          className="bg-teal-600 hover:bg-teal-500 px-3 py-1.5 rounded text-xs font-bold shadow transition-colors"
         >
-          + Add Relative Z Move (Down)
+          + Add Relative Z Down
+        </button>
+        <button 
+          onClick={() => addGripperWaypoint(true)}
+          disabled={running}
+          className="bg-blue-600 hover:bg-blue-500 px-3 py-1.5 rounded text-xs font-bold shadow transition-colors"
+        >
+          + Open Gripper
+        </button>
+        <button 
+          onClick={() => addGripperWaypoint(false)}
+          disabled={running}
+          className="bg-amber-600 hover:bg-amber-500 px-3 py-1.5 rounded text-xs font-bold shadow transition-colors"
+        >
+          + Close Gripper
+        </button>
+        <button 
+          onClick={loadDemoPickAndPlace}
+          disabled={running}
+          className="bg-gray-600 hover:bg-gray-500 px-3 py-1.5 rounded text-xs font-bold shadow transition-colors ml-auto"
+        >
+          Load Demo Pick & Place
         </button>
       </div>
 
@@ -106,9 +155,10 @@ const ProgramEditor = ({ currentJoints }: { currentJoints: Record<string, number
               <div>
                 <span className="font-bold text-gray-300 mr-4">#{idx + 1}</span>
                 <span className="text-sm font-mono text-gray-400">
-                  {wp.type === 'JOINT' 
-                    ? `JOINT TARGET (${Object.keys(wp.data).length} joints)` 
-                    : `CARTESIAN RELATIVE (Axis: ${(wp.data as any).axis}, Dist: ${(wp.data as any).distance})`}
+                  {wp.type === 'JOINT' && `JOINT TARGET (${Object.keys(wp.data || {}).length} joints)`}
+                  {wp.type === 'CARTESIAN' && `CARTESIAN RELATIVE (Axis: ${(wp.data as any)?.axis}, Dist: ${(wp.data as any)?.distance})`}
+                  {wp.type === 'GRIPPER_OPEN' && `ACTION: OPEN GRIPPER`}
+                  {wp.type === 'GRIPPER_CLOSE' && `ACTION: CLOSE GRIPPER`}
                 </span>
               </div>
               <button 

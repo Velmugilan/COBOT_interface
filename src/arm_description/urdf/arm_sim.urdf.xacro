@@ -19,7 +19,7 @@
   <xacro:arm prefix="$(arg prefix)"/>
   <xacro:arm_gazebo prefix="$(arg prefix)"
                     controller_config="$(arg controller_config)"/>
-  <xacro:wrist_camera prefix="$(arg prefix)" parent="$(arg prefix)tool0"/>
+  <xacro:wrist_camera prefix="$(arg prefix)" parent="$(arg prefix)tool0" rpy="0 -1.570796 0"/>
   <xacro:parallel_gripper prefix="$(arg prefix)" parent="$(arg prefix)tool0"/>
 
 </robot>

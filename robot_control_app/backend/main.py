@@ -105,7 +105,8 @@ async def execute_joint_motion(target: JointTarget):
         from fastapi import HTTPException
         raise HTTPException(status_code=503, detail="ROS Node not ready")
         
-    success, message = await ros_node.moveit_manager.plan_and_execute_joint_target(target.joints)
+    filtered_joints = {k: v for k, v in target.joints.items() if k.startswith('joint_')}
+    success, message = await ros_node.moveit_manager.plan_and_execute_joint_target(filtered_joints)
     return {"success": success, "message": message}
 
 @app.post("/api/motion/jog_joint")
@@ -114,7 +115,8 @@ def execute_jog_joint(target: JointTarget):
         from fastapi import HTTPException
         raise HTTPException(status_code=503, detail="ROS Node not ready")
         
-    success = ros_node.publish_direct_joint_target(target.joints)
+    filtered_joints = {k: v for k, v in target.joints.items() if k.startswith('joint_')}
+    success = ros_node.publish_direct_joint_target(filtered_joints)
     return {"success": success, "message": "Jog sent"}
 
 @app.post("/api/motion/estop")
@@ -139,76 +141,37 @@ async def execute_cartesian_motion(target: CartesianTarget):
     success, message = await ros_node.moveit_manager.plan_and_execute_cartesian_target(target.axis, target.distance)
     return {"success": success, "message": message}
 
-import Xlib.display
-from Xlib.ext import composite
-import io
-from PIL import Image
 from fastapi.responses import Response
 
-def _find_rviz_window(win):
-    try:
-        name = win.get_wm_name()
-        wm_class = win.get_wm_class()
+@app.get("/api/camera/snapshot")
+def camera_snapshot():
+    if not ros_node:
+        return Response(status_code=503)
         
-        if name and ('rviz' in name.lower() or 'moveit' in name.lower()):
-            geom = win.get_geometry()
-            if geom.width > 100 and geom.height > 100:
-                return win
-                
-        if wm_class and ('rviz' in wm_class[0].lower() or 'moveit' in wm_class[0].lower()):
-            geom = win.get_geometry()
-            if geom.width > 100 and geom.height > 100:
-                return win
-                
-        for child in win.query_tree().children:
-            res = _find_rviz_window(child)
-            if res:
-                return res
-    except Exception:
-        pass
-    return None
-
-def _capture_rviz_composite() -> bytes:
-    try:
-        d = Xlib.display.Display()
-        root = d.screen().root
-        win = _find_rviz_window(root)
-        
-        if not win:
-            d.close()
-            return b''
-            
-        composite.redirect_window(win, composite.RedirectAutomatic)
-        d.sync()
-        geom = win.get_geometry()
-        
-        try:
-            raw = win.get_image(0, 0, geom.width, geom.height, Xlib.X.ZPixmap, 0xffffffff)
-            img_pil = Image.frombytes("RGB", (geom.width, geom.height), raw.data, "raw", "BGRX")
-            img_pil.thumbnail((960, 720), Image.LANCZOS)
-            buf = io.BytesIO()
-            img_pil.save(buf, format='JPEG', quality=75)
-            return buf.getvalue()
-        finally:
-            composite.unredirect_window(win, composite.RedirectAutomatic)
-            d.sync()
-            d.close()
-    except Exception as e:
-        print(f"[RVIZ] XComposite Capture error: {e}")
-        return b''
-
-@app.get("/api/rviz/snapshot")
-def rviz_snapshot():
-    frame = _capture_rviz_composite()
+    frame = ros_node.get_camera_jpeg()
     if not frame:
-        img = Image.new('RGB', (640, 480), color=(17, 24, 39))
-        buf = io.BytesIO()
-        img.save(buf, format='JPEG', quality=50)
-        return Response(content=buf.getvalue(), media_type="image/jpeg",
-                       headers={"X-Rviz-Status": "capture-failed"})
-    
+        return Response(status_code=503)
+        
     return Response(content=frame, media_type="image/jpeg",
-                   headers={"X-Rviz-Status": "ok", "Cache-Control": "no-cache"})
+                   headers={"Cache-Control": "no-cache"})
+
+@app.post("/api/gripper/open")
+async def open_gripper():
+    if not ros_node: return Response(status_code=503)
+    success, msg = await ros_node.moveit_manager.open_gripper()
+    return {"success": success, "message": msg}
+
+@app.post("/api/gripper/close")
+async def close_gripper():
+    if not ros_node: return Response(status_code=503)
+    success, msg = await ros_node.moveit_manager.close_gripper()
+    return {"success": success, "message": msg}
+
+@app.post("/api/motion/pick_place")
+async def run_pick_place():
+    if not ros_node: return Response(status_code=503)
+    success, msg = await ros_node.moveit_manager.run_pick_and_place()
+    return {"success": success, "message": msg}
 
 @app.websocket("/ws/robot")
 async def websocket_endpoint(websocket: WebSocket):

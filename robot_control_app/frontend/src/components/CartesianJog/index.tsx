@@ -54,7 +54,7 @@ const CartesianJog = () => {
         </select>
       </div>
 
-      <div className="grid grid-cols-2 gap-8">
+      <div className="grid grid-cols-2 gap-8 mb-6">
         {/* Translation */}
         <div>
           <h3 className="text-gray-400 text-sm mb-2 text-center">Translation (XYZ)</h3>
@@ -95,6 +95,43 @@ const CartesianJog = () => {
                 <button disabled={loading} onClick={() => handleJog('rz', 1)} className="bg-gray-700 hover:bg-gray-600 px-4 py-1 rounded font-bold">+</button>
              </div>
           </div>
+        </div>
+      </div>
+      
+      {/* End Effector */}
+      <div className="border-t border-gray-700 pt-4">
+        <h3 className="text-gray-400 text-sm mb-3">End Effector</h3>
+        <div className="flex space-x-4">
+            <button 
+                disabled={loading} 
+                onClick={async () => {
+                    setLoading(true); setResultMsg("Opening...");
+                    try {
+                        const res = await fetch(`http://${window.location.hostname}:8000/api/gripper/open`, { method: "POST" });
+                        const data = await res.json();
+                        setResultMsg(data.success ? "Success" : "Failed");
+                    } catch (e: any) { setResultMsg(`Error: ${e.message}`); }
+                    setLoading(false);
+                }} 
+                className="bg-blue-600 hover:bg-blue-500 py-3 rounded font-bold flex-1 shadow-lg transition-colors"
+            >
+                OPEN GRIPPER
+            </button>
+            <button 
+                disabled={loading} 
+                onClick={async () => {
+                    setLoading(true); setResultMsg("Closing...");
+                    try {
+                        const res = await fetch(`http://${window.location.hostname}:8000/api/gripper/close`, { method: "POST" });
+                        const data = await res.json();
+                        setResultMsg(data.success ? "Success" : "Failed");
+                    } catch (e: any) { setResultMsg(`Error: ${e.message}`); }
+                    setLoading(false);
+                }} 
+                className="bg-amber-600 hover:bg-amber-500 py-3 rounded font-bold flex-1 shadow-lg transition-colors"
+            >
+                CLOSE GRIPPER
+            </button>
         </div>
       </div>
     </div>

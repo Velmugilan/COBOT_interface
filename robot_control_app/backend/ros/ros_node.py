@@ -8,6 +8,8 @@ from tf2_ros.transform_listener import TransformListener
 from rclpy.executors import MultiThreadedExecutor
 from threading import Thread
 import json
+import cv2
+from cv_bridge import CvBridge
 
 class RobotAppNode(Node):
     def __init__(self, config, loop):
@@ -20,6 +22,8 @@ class RobotAppNode(Node):
         self.loop = loop
         
         self.joint_states = {}
+        self.latest_camera_jpeg = b''
+        self.cv_bridge = CvBridge()
         
         from backend.ros.moveit_manager import MoveItManager
         self.moveit_manager = MoveItManager(self, config)
@@ -41,6 +45,18 @@ class RobotAppNode(Node):
             10
         )
         
+        from sensor_msgs.msg import Image
+        self.cam_sub = self.create_subscription(
+            Image,
+            '/wrist_camera/image',
+            self.camera_callback,
+            10
+        )
+        
+        from std_msgs.msg import Empty
+        self.attach_pub = self.create_publisher(Empty, '/red_block/attach', 10)
+        self.detach_pub = self.create_publisher(Empty, '/red_block/detach', 10)
+
         self._is_running = True
         self._readiness = {
             "ros2": True,
@@ -57,6 +73,17 @@ class RobotAppNode(Node):
         self._readiness['joint_states'] = True
         for idx, name in enumerate(msg.name):
             self.joint_states[name] = msg.position[idx]
+
+    def camera_callback(self, msg):
+        try:
+            cv_image = self.cv_bridge.imgmsg_to_cv2(msg, desired_encoding='bgr8')
+            _, buffer = cv2.imencode('.jpg', cv_image)
+            self.latest_camera_jpeg = buffer.tobytes()
+        except Exception as e:
+            self.get_logger().error(f"Failed to process camera image: {e}")
+
+    def get_camera_jpeg(self):
+        return self.latest_camera_jpeg
 
     async def broadcast(self, message):
         for client in self.ws_clients:
@@ -111,10 +138,10 @@ class RobotAppNode(Node):
         
         msg = JointTrajectory()
         if self.joint_states:
-            msg.joint_names = list(self.joint_states.keys())
+            msg.joint_names = [k for k in self.joint_states.keys() if k.startswith('joint_')]
             
             point = JointTrajectoryPoint()
-            point.positions = list(self.joint_states.values())
+            point.positions = [float(self.joint_states[k]) for k in msg.joint_names]
             # Instruct the controller to hold current position immediately
             point.time_from_start = Duration(sec=0, nanosec=1000000) 
             msg.points.append(point)
