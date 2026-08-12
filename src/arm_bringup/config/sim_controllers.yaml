@@ -8,6 +8,9 @@ controller_manager:
     manipulator_controller:
       type: joint_trajectory_controller/JointTrajectoryController
 
+    gripper_controller:
+      type: parallel_gripper_action_controller/GripperActionController
+
 manipulator_controller:
   ros__parameters:
     joints:
@@ -25,3 +28,12 @@ manipulator_controller:
     state_publish_rate: 100.0
     action_monitor_rate: 20.0
     allow_partial_joints_goal: false
+
+gripper_controller:
+  ros__parameters:
+    joint: finger_joint
+    allow_stalling: true
+    stall_velocity_threshold: 0.001
+    stall_timeout: 0.5
+    goal_tolerance: 0.005
+    max_effort: 60.0

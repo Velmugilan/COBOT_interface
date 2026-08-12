@@ -24,6 +24,7 @@ setup(
     },
     entry_points={
         'console_scripts': [
+            'pick_place = arm_task.pick_place:main',
         ],
     },
 )

@@ -7,6 +7,7 @@
   <xacro:include filename="$(find arm_description)/urdf/arm_macro.xacro"/>
   <xacro:include filename="$(find arm_description)/urdf/arm_gazebo.xacro"/>
   <xacro:include filename="$(find arm_description)/urdf/camera.xacro"/>
+  <xacro:include filename="$(find arm_description)/urdf/gripper.xacro"/>
 
   <link name="world"/>
   <joint name="world_joint" type="fixed">
@@ -19,5 +20,6 @@
   <xacro:arm_gazebo prefix="$(arg prefix)"
                     controller_config="$(arg controller_config)"/>
   <xacro:wrist_camera prefix="$(arg prefix)" parent="$(arg prefix)tool0"/>
+  <xacro:parallel_gripper prefix="$(arg prefix)" parent="$(arg prefix)tool0"/>
 
 </robot>

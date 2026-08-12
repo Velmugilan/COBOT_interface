@@ -48,6 +48,8 @@ def generate_launch_description():
             "/wrist_camera/depth_image@sensor_msgs/msg/Image[gz.msgs.Image",
             "/wrist_camera/camera_info@sensor_msgs/msg/CameraInfo[gz.msgs.CameraInfo",
             "/wrist_camera/points@sensor_msgs/msg/PointCloud2[gz.msgs.PointCloudPacked",
+            "/red_block/attach@std_msgs/msg/Empty]gz.msgs.Empty",
+            "/red_block/detach@std_msgs/msg/Empty]gz.msgs.Empty",
         ],
     )
 
@@ -75,4 +77,13 @@ def generate_launch_description():
         )],
     )
 
-    return LaunchDescription([gz, rsp, bridge, spawn, jsb, arm])
+    grip = TimerAction(
+        period=21.0,
+        actions=[Node(
+            package="controller_manager", executable="spawner",
+            arguments=["gripper_controller",
+                       "--controller-manager-timeout", "30"],
+            output="screen",
+        )],
+    )
+    return LaunchDescription([gz, rsp, bridge, spawn, jsb, arm, grip])
