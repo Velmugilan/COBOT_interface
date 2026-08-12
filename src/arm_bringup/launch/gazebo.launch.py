@@ -1,7 +1,7 @@
 import os
 from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
-from launch.actions import IncludeLaunchDescription, TimerAction
+from launch.actions import ExecuteProcess, IncludeLaunchDescription, TimerAction
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import Command, FindExecutable
 from launch_ros.actions import Node
@@ -86,4 +86,13 @@ def generate_launch_description():
             output="screen",
         )],
     )
-    return LaunchDescription([gz, rsp, bridge, spawn, jsb, arm, grip])
+    initial_detach = TimerAction(
+        period=24.0,
+        actions=[ExecuteProcess(
+            cmd=["ros2", "topic", "pub", "--once", "/red_block/detach",
+                 "std_msgs/msg/Empty", "{}"],
+            output="screen",
+        )],
+    )
+    return LaunchDescription([gz, rsp, bridge, spawn, jsb, arm, grip,
+                              initial_detach])

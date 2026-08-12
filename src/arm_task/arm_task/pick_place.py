@@ -1,6 +1,10 @@
 #!/usr/bin/env python3
 """Pick and place a block using MoveIt via the move_group action.
 
+Reads the target position from the red_block TF frame published by the
+perception node, so the arm picks up the block wherever it actually is.
+Falls back to a hardcoded position if no detection is available.
+
 Targets grasp_frame (the fingertip midpoint) rather than tool0, so no
 manual offset arithmetic is needed.
 
@@ -28,7 +32,8 @@ from tf2_ros import Buffer, TransformListener
 
 # --- task parameters -------------------------------------------------
 BLOCK_SIZE = 0.05
-GRASP_XYZ = (1.20, 0.00, 0.535)
+BLOCK_FRAME = "red_block"
+GRASP_XYZ = (1.20, 0.00, 0.535)     # fallback if no detection
 PLACE_XYZ = (1.10, 0.15, 0.535)
 HOVER = 0.15
 GRIPPER_OPEN = 0.04
@@ -61,6 +66,33 @@ class PickPlace(Node):
         time.sleep(1.0)
         self.detach_pub.publish(Empty())
         time.sleep(0.5)
+
+    # ---------------- perception ----------------
+    def find_block(self, frame=BLOCK_FRAME, timeout=10.0):
+        """Look up the detected block pose from TF.
+
+        The detector reports the top face of the block, so subtract half the
+        block height to get the grasp centre.
+        """
+        deadline = time.time() + timeout
+        while time.time() < deadline:
+            rclpy.spin_once(self, timeout_sec=0.2)
+            try:
+                t = self.tf_buffer.lookup_transform(
+                    "base_link", frame, rclpy.time.Time())
+                x = t.transform.translation.x
+                y = t.transform.translation.y
+                z_top = t.transform.translation.z
+                z = z_top - BLOCK_SIZE / 2.0
+                self.get_logger().info(
+                    f"detected {frame}: top z={z_top:.3f}, "
+                    f"grasp centre ({x:.3f}, {y:.3f}, {z:.3f})")
+                return (x, y, z)
+            except Exception:
+                continue
+        self.get_logger().warn(
+            f"no '{frame}' frame after {timeout:.0f}s - using fallback position")
+        return None
 
     # ---------------- gripper ----------------
     def set_gripper(self, position):
@@ -157,7 +189,12 @@ class PickPlace(Node):
     # ---------------- sequence ----------------
     def run(self):
         q = down_quaternion()
-        gx, gy, gz = GRASP_XYZ
+
+        detected = self.find_block()
+        if detected:
+            gx, gy, gz = detected
+        else:
+            gx, gy, gz = GRASP_XYZ
         px, py, pz = PLACE_XYZ
 
         steps = [
